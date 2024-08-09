@@ -5,6 +5,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.example.dto.KafkaProperty;
 import org.example.parser.Parser;
 
 import java.time.Duration;
@@ -22,30 +23,32 @@ import static org.apache.kafka.clients.consumer.ConsumerConfig.VALUE_DESERIALIZE
 
 public class MyConsumer implements Runnable {
     private final Queue queue;
-    private final String consumeServerIp;
-    private final String produceServerIp;
-    private final String topic;
+    private final KafkaProperty properties;
     private final ExecutorService executorService;
 
-    public MyConsumer(Queue queue, String consumeServerIp, String produceServerIp, String topic) {
+    public MyConsumer(Queue queue, KafkaProperty properties) {
         this.queue = queue;
-        this.consumeServerIp = consumeServerIp;
-        this.produceServerIp = produceServerIp;
-        this.topic = topic;
+        this.properties = properties;
         this.executorService = Executors.newFixedThreadPool(3);
     }
 
+    /**
+     * TODO
+     * 프로퍼티 불러오기
+     */
     @Override
     public void run() {
         Properties props = new Properties();
         // User-specific properties that you must set
-        props.put(BOOTSTRAP_SERVERS_CONFIG, consumeServerIp);
+        props.put(BOOTSTRAP_SERVERS_CONFIG, properties.consumeServerId());
         // Fixed properties
         props.put(KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getCanonicalName());
         props.put(VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getCanonicalName());
         props.put(GROUP_ID_CONFIG, "consumer-group");
 
         try (final Consumer<String, String> consumer = new KafkaConsumer<>(props)) {
+            String topic = properties.topic();
+            String produceServerIp = properties.produceServerId();
             consumer.subscribe(Arrays.asList(topic));
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
