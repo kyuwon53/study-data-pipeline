@@ -5,24 +5,19 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.dto.SensorData;
 import org.example.dto.SensorRawData;
 
-import java.util.Queue;
-
 import static com.fasterxml.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES;
 import static org.example.util.Calculator.getCrest;
 import static org.example.util.Calculator.getP2p;
 import static org.example.util.Calculator.getRms;
 
-public class Parser implements Runnable {
+public class Parser {
     private final String data;
-    private final Queue queue;
 
-    public Parser(String data, Queue queue) {
+    public Parser(String data) {
         this.data = data;
-        this.queue = queue;
     }
 
-    @Override
-    public void run() {
+    public static SensorData parse(String data) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             objectMapper.configure(FAIL_ON_UNKNOWN_PROPERTIES, false);
@@ -47,13 +42,10 @@ public class Parser implements Runnable {
             System.out.printf("Calculate Sensor Data: xRms[ %f ] , yRms[ %f ], zRms[ %f ], xP2p[ %f ], yP2p[ %f ], zP2p[ %f ], xCrest[ %f ], yCrest[ %f ], zCrest[ %f ]\n", xRms, yRms, zRms, xP2p, yP2p, zP2p, xCrest, yCrest, zCrest);
 
             String time = sensorRawData.getTime();
-            queue.add(new SensorData(sensorRawData.getSensorId(), time, xRms, yRms, zRms, xP2p, yP2p, zP2p, xCrest, yCrest, zCrest));
-            System.out.println("queue size : " + queue.size());
-
+            return new SensorData(sensorRawData.getSensorId(), time, xRms, yRms, zRms, xP2p, yP2p, zP2p, xCrest, yCrest, zCrest);
         } catch (JsonProcessingException e) {
             System.out.println(e);
         }
-
+        return null;
     }
-
 }

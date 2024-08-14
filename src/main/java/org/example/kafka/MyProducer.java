@@ -6,11 +6,11 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+import org.example.dto.KafkaProperty;
 import org.example.dto.SensorData;
 
-import java.time.ZonedDateTime;
 import java.util.Properties;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 
 import static org.apache.kafka.clients.producer.ProducerConfig.ACKS_CONFIG;
 import static org.apache.kafka.clients.producer.ProducerConfig.BOOTSTRAP_SERVERS_CONFIG;
@@ -18,12 +18,12 @@ import static org.apache.kafka.clients.producer.ProducerConfig.KEY_SERIALIZER_CL
 import static org.apache.kafka.clients.producer.ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG;
 
 public class MyProducer implements Runnable {
-    private final Queue queue;
-    private final String serverIp;
+    private final BlockingQueue<SensorData> queue;
+    private final KafkaProperty properties;
 
-    public MyProducer(Queue queue, String serverIp) {
+    public MyProducer(BlockingQueue queue, KafkaProperty properties) {
         this.queue = queue;
-        this.serverIp = serverIp;
+        this.properties = properties;
     }
 
     @Override
@@ -32,27 +32,21 @@ public class MyProducer implements Runnable {
         System.out.println("Producer Start : " + Thread.currentThread().getName());
 
         // User-specific properties that you must set
-        props.put(BOOTSTRAP_SERVERS_CONFIG, serverIp);
+        props.put(BOOTSTRAP_SERVERS_CONFIG, properties.produceServerId());
 
         // Fixed properties
         props.put(KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
         props.put(VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getCanonicalName());
         props.put(ACKS_CONFIG, "all");
 
-
         try (final Producer<String, String> producer = new KafkaProducer<>(props)) {
-            if (queue.isEmpty() || !(queue.peek() instanceof SensorData)) {
-                for (int i = 0; i < 10; i++) {
-                    String value = "{\"sensorId\" : \"" + i + "\", \"time\" : \"" + ZonedDateTime.now() + "\", \"xAxis\" : [3.1,2.2], \"yAxis\" : [3.1,2.2], \"zAxis\" : [3.1,2.2]}";
-                    sendMessage(producer, "sensor-raw-data", value);
-                }
-            } else {
+            while (true) {
                 processQueue(producer);
+                Thread.sleep(100);
             }
-        } catch (JsonProcessingException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        System.out.println("Producer END : " + Thread.currentThread().getName());
     }
 
     private void processQueue(Producer<String, String> producer) throws JsonProcessingException {
